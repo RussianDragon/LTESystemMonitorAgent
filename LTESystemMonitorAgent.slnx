@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LTESystemMonitorAgent/LTESystemMonitorAgent.csproj" />
+  </Folder>
+  <Folder Name="/src/Data access layer/">
+    <Project Path="src/LTESM.DAL.Abstractions/LTESM.DAL.Abstractions.csproj" Id="255a11a3-9ffb-41cb-be52-5ce77f176d2c" />
+    <Project Path="src/LTESM.DAL.SQLite/LTESM.DAL.SQLite.csproj" Id="8841839b-34f0-44c0-bb29-88d89e98672a" />
+  </Folder>
+  <Folder Name="/src/Monitoring/">
+    <Project Path="src/LTESystemMonitoring.Abstractions/LTESystemMonitoring.Abstractions.csproj" />
+    <Project Path="src/LTESystemMonitoring/LTESystemMonitoring.csproj" Id="39d267fb-76ca-4325-8cbf-3822f23f3561" />
+  </Folder>
+  <Folder Name="/src/Outbox/">
+    <Project Path="src/LTESystemOutbox.Abstractions/LTESystemOutbox.Abstractions.csproj" />
+    <Project Path="src/LTESystemOutbox/LTESystemOutbox.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tools/">
+    <Project Path="tools/LTESystemMockApi/LTESystemMockApi.csproj" Id="deebe635-b165-40f3-a82b-fdc94b995b83" />
+  </Folder>
+</Solution>
