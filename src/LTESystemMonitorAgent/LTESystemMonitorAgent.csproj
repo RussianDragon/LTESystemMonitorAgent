@@ -31,4 +31,14 @@
   <ItemGroup>
     <Content Update="nlog.config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="CopyServiceScriptsToPublishRoot" AfterTargets="Publish">
+    <ItemGroup>
+      <ServiceScriptFiles Include="$(MSBuildProjectDirectory)\ServiceScripts\*.cmd" />
+      <ServiceScriptFiles Include="$(MSBuildProjectDirectory)\ServiceScripts\*.ps1" />
+    </ItemGroup>
+
+    <Delete Files="@(ServiceScriptFiles->'$(PublishDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(ServiceScriptFiles)" DestinationFolder="$(PublishDir)..\" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

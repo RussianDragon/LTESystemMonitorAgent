@@ -1,16 +1,18 @@
 # LTESystemMonitorAgent
 
-Windows Service агент для сбора системных метрик компьютера, сохранения снимков в SQLite и последующей отправки данных на HTTP API через outbox.
+Windows Service агент для сбора системных метрик компьютера и отправки данных на HTTP API.
 
-> Реализованы запуск как Windows Service и в консольном режиме, сбор системных метрик, запись в SQLite, HTTP-отправка через outbox, файловое логирование, mock API и unit-тесты.
+Агент собирает состояние машины по расписанию, сохраняет снимки в SQLite, создает outbox-сообщения и отдельно отправляет их во внешний HTTP API. Если API временно недоступен, приложение не завершается: ошибка пишется в лог, сообщение остается доступным для повторной отправки.
 
-## Требования
+## Требования к запуску
 
-- Windows
-- .NET 10 SDK для сборки и разработки
-- Права администратора для установки и управления Windows Service
+- Windows.
+- .NET 10 SDK для сборки из исходников.
+- Права администратора для установки, запуска, остановки и удаления Windows Service.
 
-## Сборка
+## Как собрать проект
+
+Выполнить из корня репозитория:
 
 ```powershell
 dotnet restore .\LTESystemMonitorAgent.slnx
@@ -18,82 +20,198 @@ dotnet build .\LTESystemMonitorAgent.slnx
 dotnet test .\LTESystemMonitorAgent.slnx --no-restore
 ```
 
-## Публикация
+Опубликовать исполняемые файлы для установки службы:
 
 ```powershell
-dotnet publish .\src\LTESystemMonitorAgent\LTESystemMonitorAgent.csproj -c Release -r win-x64 --self-contained false -o .\publish\LTESystemMonitorAgent
+dotnet publish .\src\LTESystemMonitorAgent\LTESystemMonitorAgent.csproj -c Release -r win-x64 --self-contained true -o .\publish\LTESystemMonitorAgent
 ```
 
-После публикации исполняемый файл будет находиться здесь:
+Публикация выполняется в self-contained режиме: на машине, где будет запускаться опубликованная папка, не требуется установленный .NET Runtime или .NET SDK.
+
+После публикации основная папка приложения будет находиться здесь:
 
 ```text
-.\publish\LTESystemMonitorAgent\LTESystemMonitorAgent.exe
+.\publish\LTESystemMonitorAgent
 ```
 
-## Запуск в консольном режиме
+Скрипты управления службой будут лежать на уровень выше, в корне `publish`:
 
-Из исходников:
-
-```powershell
-dotnet run --project .\src\LTESystemMonitorAgent\LTESystemMonitorAgent.csproj
+```text
+.\publish\start.cmd
+.\publish\stop.cmd
+.\publish\delete.cmd
 ```
 
-Из опубликованной папки:
+## Как установить службу
 
-```powershell
-.\publish\LTESystemMonitorAgent\LTESystemMonitorAgent.exe
+Открыть папку:
+
+```text
+publish
 ```
 
-## Установка Windows Service
+Запустить `start.cmd`. Если служба еще не установлена, скрипт установит ее из `publish\LTESystemMonitorAgent\LTESystemMonitorAgent.exe` и затем запустит.
 
-Выполнять PowerShell от имени администратора:
+При запуске без прав администратора скрипт запросит повышение прав через стандартное окно Windows.
 
-```powershell
-$serviceName = "LTESystemMonitorAgent"
-$exePath = "F:\my programs C#\LTESystemMonitorAgent\publish\LTESystemMonitorAgent\LTESystemMonitorAgent.exe"
+## Как запустить службу
 
-New-Service `
-  -Name $serviceName `
-  -BinaryPathName "`"$exePath`"" `
-  -DisplayName "LTE System Monitor Agent" `
-  -Description "Collects system metrics and dispatches them to HTTP API." `
-  -StartupType Automatic
+Запустить из папки `publish`:
+
+```text
+start.cmd
 ```
 
-## Запуск службы
+Если служба уже установлена, скрипт просто запустит ее. Если служба уже запущена, скрипт покажет текущее состояние.
+
+Альтернативная ручная команда PowerShell:
 
 ```powershell
 Start-Service LTESystemMonitorAgent
 ```
 
-## Остановка службы
+## Как остановить службу
+
+Запустить из папки `publish`:
+
+```text
+stop.cmd
+```
+
+Альтернативная ручная команда PowerShell:
 
 ```powershell
 Stop-Service LTESystemMonitorAgent
 ```
 
-## Удаление службы
+## Как удалить службу
+
+Запустить из папки `publish`:
+
+```text
+delete.cmd
+```
+
+Скрипт остановит службу, если она запущена, а затем удалит ее из Windows Service Control Manager.
+
+Альтернативные ручные команды PowerShell:
 
 ```powershell
 Stop-Service LTESystemMonitorAgent
 sc.exe delete LTESystemMonitorAgent
 ```
 
-## Конфигурация
+Если служба уже остановлена, команда `Stop-Service` может вернуть предупреждение. После `sc.exe delete` служба будет удалена из Windows Service Control Manager.
 
-Основной файл конфигурации:
+## Как изменить конфигурацию
+
+Файл конфигурации в исходниках:
 
 ```text
 src\LTESystemMonitorAgent\appsettings.json
 ```
 
-После публикации конфигурация находится рядом с exe:
+Файл конфигурации после публикации:
 
 ```text
 publish\LTESystemMonitorAgent\appsettings.json
 ```
 
-Текущий пример:
+Основные параметры:
+
+- `HttpMetricDelivery:ApiUrl` - адрес HTTP API, куда отправляются метрики.
+- `Quartz:MetricCollectionIntervalSeconds` - интервал сбора метрик в секундах.
+- `Monitoring:MonitoredProcesses` - список процессов, наличие которых нужно проверять.
+- `Logging:FilePath` - путь к основному файлу лога.
+- `HttpMetricDelivery:HttpTimeoutSeconds` - timeout HTTP-запроса в секундах.
+- `Outbox:BatchSize` - количество outbox-сообщений, которые обрабатываются за один запуск отправки.
+- `Database:ConnectionString` - строка подключения к SQLite.
+
+Если `Logging:FilePath` задан относительным путем, файл лога создается относительно папки с `LTESystemMonitorAgent.exe`.
+
+После изменения конфигурации для установленной службы нужно перезапустить службу:
+
+```powershell
+Restart-Service LTESystemMonitorAgent
+```
+
+## Как проверить работу приложения
+
+Проверить, что служба установлена и запущена:
+
+```powershell
+Get-Service LTESystemMonitorAgent | Format-List Name, Status, ServiceType, StartType
+sc.exe qc LTESystemMonitorAgent
+```
+
+Через 1-2 минуты после запуска проверить последние строки основного лога:
+
+```powershell
+Get-Content .\publish\LTESystemMonitorAgent\logs\agent.log -Tail 100
+```
+
+В логах должны появиться события запуска, выполнения задач Quartz, сбора метрик, успешной отправки или ошибки отправки:
+
+```json
+{"level":"INFO","logger":"LTESystemMonitorAgent.Program","message":"Starting LTESystemMonitorAgent."}
+{"level":"INFO","logger":"LTESystemMonitorAgent.Jobs.CollectMetricsJob","message":"Metric collection job started."}
+{"level":"INFO","logger":"LTESystemMonitorAgent.Jobs.DispatchOutboxJob","message":"Outbox dispatch job started."}
+```
+
+Для проверки HTTP-отправки можно запустить вспомогательный mock API:
+
+```powershell
+dotnet run --project .\tools\LTESystemMockApi\LTESystemMockApi.csproj
+```
+
+После запуска mock API указать его адрес в `HttpMetricDelivery:ApiUrl`, например:
+
+```json
+"HttpMetricDelivery": {
+  "ApiUrl": "http://localhost:5203/api/metrics",
+  "HttpTimeoutSeconds": 10
+}
+```
+
+Приложение также можно запустить в консольном режиме без установки службы:
+
+```powershell
+dotnet run --project .\src\LTESystemMonitorAgent\LTESystemMonitorAgent.csproj
+```
+
+Консольный запуск нужен только для ручной проверки и разработки. Основной сценарий запуска по ТЗ - Windows Service.
+
+## Где находятся логи
+
+Основной лог приложения пишется в файл из параметра `Logging:FilePath`.
+
+Путь по умолчанию после публикации:
+
+```text
+publish\LTESystemMonitorAgent\logs\agent.log
+```
+
+Путь по умолчанию при запуске через `dotnet run`:
+
+```text
+src\LTESystemMonitorAgent\bin\Debug\net10.0\logs\agent.log
+```
+
+Служебный лог самого NLog:
+
+```text
+publish\LTESystemMonitorAgent\logs\nlog-internal.log
+```
+
+Лог пишется в формате JSON Lines: одна строка равна одному JSON-событию.
+
+Файловое логирование настраивается через:
+
+```text
+src\LTESystemMonitorAgent\nlog.config
+```
+
+## Пример конфигурационного файла
 
 ```json
 {
@@ -112,7 +230,7 @@ publish\LTESystemMonitorAgent\appsettings.json
     ]
   },
   "HttpMetricDelivery": {
-    "ApiUrl": "https://localhost:7200/api/metrics",
+    "ApiUrl": "http://localhost:5203/api/metrics",
     "HttpTimeoutSeconds": 10
   },
   "Outbox": {
@@ -128,116 +246,7 @@ publish\LTESystemMonitorAgent\appsettings.json
 }
 ```
 
-Путь к основному файлу лога задается в `Logging:FilePath`.
-Если указан относительный путь, он вычисляется относительно папки с `LTESystemMonitorAgent.exe`.
-
-В секции `Outbox` параметр `BatchSize` управляет количеством сообщений, которые диспетчер берет из SQLite за один запуск.
-В секции `HttpMetricDelivery` параметры `ApiUrl` и `HttpTimeoutSeconds` относятся к текущей HTTP-реализации доставки метрик.
-
-## Логи
-
-NLog настраивается в:
-
-```text
-src\LTESystemMonitorAgent\nlog.config
-```
-
-По умолчанию основной лог пишется в файл, указанный в `Logging:FilePath`.
-Значение по умолчанию:
-
-```text
-publish\LTESystemMonitorAgent\logs\agent.log
-```
-
-Служебный лог самого NLog по умолчанию остается рядом с приложением:
-
-```text
-publish\LTESystemMonitorAgent\logs\nlog-internal.log
-```
-
-Файл `agent.log` пишется в формате JSON Lines: одна строка равна одному JSON-событию.
-
-При запуске из `dotnet run` логи находятся в:
-
-```text
-src\LTESystemMonitorAgent\bin\Debug\net10.0\logs
-```
-
-## Проверка работы
-
-Проверить, что приложение запущено именно как Windows Service:
-
-```powershell
-Get-Service LTESystemMonitorAgent | Format-List Name, Status, ServiceType, StartType
-sc.exe qc LTESystemMonitorAgent
-```
-
-Через 1-2 минуты после запуска проверить последние строки JSON-лога:
-
-```powershell
-Get-Content .\publish\LTESystemMonitorAgent\logs\agent.log -Tail 100
-```
-
-В рабочем запуске в логах должны появляться сообщения:
-
-```json
-{"level":"INFO","logger":"LTESystemMonitorAgent.Program","message":"Starting LTESystemMonitorAgent."}
-{"level":"INFO","logger":"LTESystemMonitorAgent.Program","message":"LTESystemMonitorAgent host built successfully."}
-{"level":"INFO","logger":"LTESystemMonitorAgent.Jobs.CollectMetricsJob","message":"Metric collection job started."}
-{"level":"INFO","logger":"LTESystemMonitorAgent.Jobs.DispatchOutboxJob","message":"Outbox dispatch job started."}
-```
-
-После остановки службы проверить, что остановка тоже записана в лог:
-
-```powershell
-Stop-Service LTESystemMonitorAgent
-Get-Content .\publish\LTESystemMonitorAgent\logs\agent.log -Tail 20
-```
-
-Ожидаемые сообщения:
-
-```json
-{"level":"INFO","logger":"LTESystemMonitorAgent.Program","message":"LTESystemMonitorAgent is stopping."}
-{"level":"INFO","logger":"LTESystemMonitorAgent.Program","message":"LTESystemMonitorAgent stopped."}
-```
-
-## Mock API
-
-Для ручной проверки отправки метрик есть вспомогательный Web API:
-
-```powershell
-dotnet run --project .\tools\LTESystemMockApi\LTESystemMockApi.csproj
-```
-
-Swagger UI доступен в Development-режиме:
-
-```text
-https://localhost:<port>/swagger
-```
-
-Mock endpoint:
-
-```text
-POST /api/metrics
-```
-
-Сервис принимает произвольный JSON payload метрик, пишет его в консоль через NLog и возвращает `200 OK`.
-
-## Миграции БД
-
-Миграции применяются автоматически при старте приложения до запуска Quartz job-ов.
-
-Пример добавления миграции:
-
-```powershell
-dotnet ef migrations add InitialCreate `
-  --project .\src\LTESM.DAL.SQLite\LTESM.DAL.SQLite.csproj `
-  --startup-project .\src\LTESystemMonitorAgent\LTESystemMonitorAgent.csproj
-```
-
-## Пример JSON для HTTP API
-
-Пример payload, который агент отправляет на HTTP API:
+## Пример JSON, который отправляется на API
 
 ```json
 {
@@ -283,23 +292,25 @@ dotnet ef migrations add InitialCreate `
 }
 ```
 
-## Архитектура
+## Краткое описание архитектуры приложения
 
-- `LTESystemMonitorAgent` - исполняемый Generic Host, конфигурация DI, Windows Service integration, NLog, Quartz jobs, авто-миграции.
+Приложение разделено на независимые слои: чтение состояния машины, сохранение метрик, outbox-очередь, доставка метрик и исполняемый Windows Service host.
+
+- `LTESystemMonitorAgent` - исполняемый Generic Host: DI, конфигурация, Windows Service integration, NLog, Quartz jobs, автоматическое применение миграций.
 - `LTESystemMachineState.Abstractions` - контракт и модели снимка состояния компьютера.
-- `LTESystemMachineState` - Windows-реализация чтения состояния машины: CPU, RAM, IP-адреса, диски и процессы.
-- `LTESystemMonitoring.Abstractions` - контракт сценария сбора и сохранения метрик.
-- `LTESystemMonitoring` - сервис мониторинга: получает снимок состояния машины, сохраняет его в SQLite и создает сообщение outbox.
+- `LTESystemMachineState` - Windows-реализация чтения CPU, RAM, IP-адресов, дисков и процессов.
+- `LTESystemMonitoring.Abstractions` - контракт сервиса сбора и сохранения метрик.
+- `LTESystemMonitoring` - получает снимок состояния машины, сохраняет его в SQLite и создает outbox-сообщение.
+- `LTESystemOutbox.Abstractions` - контракт диспетчера outbox.
+- `LTESystemOutbox` - читает outbox-сообщения из SQLite, формирует payload, вызывает доставку и обновляет статус отправки.
 - `LTESystemMetricDelivery.Abstractions` - контракт и модели доставки метрик во внешний канал.
-- `LTESystemMetricDelivery.Http` - HTTP-реализация доставки метрик на API; при необходимости можно добавить другую реализацию, например отправку в шину событий.
-- `LTESystemOutbox.Abstractions` - контракты отправки outbox.
-- `LTESystemOutbox` - диспетчер outbox: читает сообщения из SQLite, передает payload в доставку метрик, обновляет статусы и управляет повторными попытками.
-- `LTESM.DAL.Abstractions` - EF-сущности и контракт `ILTEDbContext`.
-- `LTESM.DAL.SQLite` - SQLite EF Core контекст, маппинг таблиц и регистрация БД.
-- `tests` - unit-тесты для конфигурации, сохранения снимков мониторинга, доставки метрик и повторных попыток outbox.
-- `tools` - вспомогательные приложения, включая mock API.
+- `LTESystemMetricDelivery.Http` - HTTP-реализация отправки метрик на API с timeout и обработкой ошибок.
+- `LTESM.DAL.Abstractions` - EF Core сущности и контракт `ILTEDbContext`.
+- `LTESM.DAL.SQLite` - SQLite EF Core контекст, маппинг таблиц и регистрация базы данных.
+- `tools\LTESystemMockApi` - вспомогательный mock API для ручной проверки POST-запросов.
+- `tests` - unit-тесты для мониторинга, outbox, HTTP-доставки и конфигурации.
 
 Quartz запускает две периодические задачи:
 
-- `CollectMetricsJob` - сбор и сохранение снимка метрик.
-- `DispatchOutboxJob` - отправка накопленных сообщений outbox.
+- `CollectMetricsJob` - собирает системные метрики каждые `Quartz:MetricCollectionIntervalSeconds`.
+- `DispatchOutboxJob` - отправляет накопленные outbox-сообщения каждые `Quartz:OutboxDispatchIntervalSeconds`.

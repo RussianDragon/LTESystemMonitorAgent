@@ -2,7 +2,6 @@
 [Bb]in/
 [Oo]bj/
 artifacts/
-publish/
 
 # User-specific files
 *.rsuser
