@@ -10,18 +10,20 @@ using NLog;
 using NLog.Extensions.Logging;
 using Quartz;
 
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+var builder = Host.CreateApplicationBuilder(args);
+
 var nlogConfigPath = Path.Combine(AppContext.BaseDirectory, "nlog.config");
 var bootstrapLogger = LogManager.Setup()
+    .SetupExtensions(extensions => extensions.RegisterConfigSettings(builder.Configuration))
     .LoadConfigurationFromFile(nlogConfigPath)
     .GetCurrentClassLogger();
-
-Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
 try
 {
     bootstrapLogger.Info("Starting LTESystemMonitorAgent.");
-
-    var builder = Host.CreateApplicationBuilder(args);
+    bootstrapLogger.Info("Application logs will be written to {LogFilePath}.",
+        builder.Configuration["Logging:FilePath"] ?? "logs/agent.log");
 
     builder.Logging.ClearProviders();
     builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information);

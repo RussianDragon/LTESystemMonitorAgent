@@ -116,6 +116,7 @@ publish\LTESystemMonitorAgent\appsettings.json
     "BatchSize": 10
   },
   "Logging": {
+    "FilePath": "logs/agent.log",
     "LogLevel": {
       "Default": "Information",
       "Microsoft.Hosting.Lifetime": "Information"
@@ -124,9 +125,8 @@ publish\LTESystemMonitorAgent\appsettings.json
 }
 ```
 
-Планируемые настройки по ТЗ:
-
-- Путь к лог-файлу.
+Путь к основному файлу лога задается в `Logging:FilePath`.
+Если указан относительный путь, он вычисляется относительно папки с `LTESystemMonitorAgent.exe`.
 
 ## Логи
 
@@ -136,10 +136,16 @@ NLog настраивается в:
 src\LTESystemMonitorAgent\nlog.config
 ```
 
-По умолчанию логи пишутся в папку `logs` рядом с исполняемым файлом:
+По умолчанию основной лог пишется в файл, указанный в `Logging:FilePath`.
+Значение по умолчанию:
 
 ```text
 publish\LTESystemMonitorAgent\logs\agent.log
+```
+
+Служебный лог самого NLog по умолчанию остается рядом с приложением:
+
+```text
 publish\LTESystemMonitorAgent\logs\nlog-internal.log
 ```
 
