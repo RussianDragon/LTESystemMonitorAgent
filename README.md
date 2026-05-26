@@ -2,7 +2,7 @@
 
 Windows Service агент для сбора системных метрик компьютера, сохранения снимков в SQLite и последующей отправки данных на HTTP API через outbox.
 
-> Статус: проект находится в разработке. Инфраструктура запуска, DI, SQLite, миграции, NLog и Quartz.NET уже подключены. Сбор системных метрик, запись в SQLite и HTTP-отправка через outbox реализованы.
+> Реализованы запуск как Windows Service и в консольном режиме, сбор системных метрик, запись в SQLite, HTTP-отправка через outbox, файловое логирование, mock API и unit-тесты.
 
 ## Требования
 
@@ -15,6 +15,7 @@ Windows Service агент для сбора системных метрик к�
 ```powershell
 dotnet restore .\LTESystemMonitorAgent.slnx
 dotnet build .\LTESystemMonitorAgent.slnx
+dotnet test .\LTESystemMonitorAgent.slnx --no-restore
 ```
 
 ## Публикация
@@ -110,9 +111,11 @@ publish\LTESystemMonitorAgent\appsettings.json
       "notepad"
     ]
   },
-  "Outbox": {
+  "HttpMetricDelivery": {
     "ApiUrl": "https://localhost:7200/api/metrics",
-    "HttpTimeoutSeconds": 10,
+    "HttpTimeoutSeconds": 10
+  },
+  "Outbox": {
     "BatchSize": 10
   },
   "Logging": {
@@ -127,6 +130,9 @@ publish\LTESystemMonitorAgent\appsettings.json
 
 Путь к основному файлу лога задается в `Logging:FilePath`.
 Если указан относительный путь, он вычисляется относительно папки с `LTESystemMonitorAgent.exe`.
+
+В секции `Outbox` параметр `BatchSize` управляет количеством сообщений, которые диспетчер берет из SQLite за один запуск.
+В секции `HttpMetricDelivery` параметры `ApiUrl` и `HttpTimeoutSeconds` относятся к текущей HTTP-реализации доставки метрик.
 
 ## Логи
 
@@ -280,14 +286,18 @@ dotnet ef migrations add InitialCreate `
 ## Архитектура
 
 - `LTESystemMonitorAgent` - исполняемый Generic Host, конфигурация DI, Windows Service integration, NLog, Quartz jobs, авто-миграции.
-- `LTESystemMonitoring.Abstractions` - контракты сбора метрик.
-- `LTESystemMonitoring` - реализация сбора метрик и DI extension.
+- `LTESystemMachineState.Abstractions` - контракт и модели снимка состояния компьютера.
+- `LTESystemMachineState` - Windows-реализация чтения состояния машины: CPU, RAM, IP-адреса, диски и процессы.
+- `LTESystemMonitoring.Abstractions` - контракт сценария сбора и сохранения метрик.
+- `LTESystemMonitoring` - сервис мониторинга: получает снимок состояния машины, сохраняет его в SQLite и создает сообщение outbox.
+- `LTESystemMetricDelivery.Abstractions` - контракт и модели доставки метрик во внешний канал.
+- `LTESystemMetricDelivery.Http` - HTTP-реализация доставки метрик на API; при необходимости можно добавить другую реализацию, например отправку в шину событий.
 - `LTESystemOutbox.Abstractions` - контракты отправки outbox.
-- `LTESystemOutbox` - реализация outbox-dispatcher, HTTP POST, retry/backoff и DI extension.
+- `LTESystemOutbox` - диспетчер outbox: читает сообщения из SQLite, передает payload в доставку метрик, обновляет статусы и управляет повторными попытками.
 - `LTESM.DAL.Abstractions` - EF-сущности и контракт `ILTEDbContext`.
 - `LTESM.DAL.SQLite` - SQLite EF Core контекст, маппинг таблиц и регистрация БД.
-- `tests` - будущие unit/integration тесты.
-- `tools` - будущие вспомогательные приложения, включая mock API.
+- `tests` - unit-тесты для конфигурации, сохранения снимков мониторинга, доставки метрик и повторных попыток outbox.
+- `tools` - вспомогательные приложения, включая mock API.
 
 Quartz запускает две периодические задачи:
 

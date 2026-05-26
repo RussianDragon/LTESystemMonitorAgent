@@ -1,6 +1,6 @@
-using System.Net.Http.Json;
 using LTESM.DAL.Abstractions;
 using LTESM.DAL.Abstractions.Entities;
+using LTESystemMetricDelivery.Abstractions;
 using LTESystemOutbox.Abstractions;
 using LTESystemOutbox.Configurations;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +11,9 @@ namespace LTESystemOutbox;
 
 internal class OutboxDispatcher(
     ILTEDbContext dbContext,
-    HttpClient httpClient,
-    IOptions<SystemOutboxConfiguration> options,
+    IMetricDeliveryClient metricDeliveryClient,
+    MetricPayloadFactory metricPayloadFactory,
+    IOptions<OutboxConfiguration> options,
     ILogger<OutboxDispatcher> logger) : IOutboxDispatcher
 {
     public async Task DispatchAsync(CancellationToken cancellationToken = default)
@@ -45,7 +46,7 @@ internal class OutboxDispatcher(
 
         foreach (var message in messages)
         {
-            var dispatchSucceeded = await DispatchMessageAsync(message, configuration, cancellationToken);
+            var dispatchSucceeded = await DispatchMessageAsync(message, cancellationToken);
 
             if (!dispatchSucceeded)
             {
@@ -62,18 +63,16 @@ internal class OutboxDispatcher(
 
     private async Task<bool> DispatchMessageAsync(
         MetricOutboxMessage message,
-        SystemOutboxConfiguration configuration,
         CancellationToken cancellationToken)
     {
         try
         {
             message.AttemptCount++;
 
-            var payload = CreatePayload(message.Metric);
-            using var response = await httpClient.PostAsJsonAsync(configuration.ApiUrl, payload, cancellationToken);
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var payload = metricPayloadFactory.Create(message.Metric);
+            var deliveryResult = await metricDeliveryClient.SendAsync(payload, cancellationToken);
 
-            if (response.IsSuccessStatusCode)
+            if (deliveryResult.Succeeded)
             {
                 message.Status = OutboxMessageStatus.Sent;
                 message.SentAtUtc = DateTimeOffset.UtcNow;
@@ -87,7 +86,7 @@ internal class OutboxDispatcher(
                 return true;
             }
 
-            var error = $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}. Response: {responseBody}";
+            var error = deliveryResult.Error ?? "Metric delivery failed without error details.";
             MarkFailed(message, error);
 
             logger.LogWarning(
@@ -98,7 +97,7 @@ internal class OutboxDispatcher(
 
             return false;
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             MarkFailed(message, exception.Message);
 
@@ -110,38 +109,6 @@ internal class OutboxDispatcher(
 
             return false;
         }
-    }
-
-    private static MetricPayload CreatePayload(Metric metric)
-    {
-        return new MetricPayload(
-            metric.CollectedAtUtc,
-            metric.Hostname,
-            metric.WindowsVersion,
-            metric.UptimeSeconds,
-            metric.CpuUsagePercent,
-            metric.RamUsagePercent,
-            metric.TotalMemoryBytes,
-            metric.AvailableMemoryBytes,
-            metric.IpAddresses.Select(ipAddress => new MetricIpAddressPayload(
-                ipAddress.Address,
-                ipAddress.AddressFamily,
-                ipAddress.NetworkInterfaceName)).ToArray(),
-            metric.DiskSpaces.Select(diskSpace => new MetricDiskSpacePayload(
-                diskSpace.Name,
-                diskSpace.VolumeLabel,
-                diskSpace.DriveFormat,
-                diskSpace.TotalSpaceBytes,
-                diskSpace.FreeSpaceBytes)).ToArray(),
-            metric.RunningProcesses.Select(process => new MetricProcessPayload(
-                process.ProcessId,
-                process.Name,
-                process.StartedAtUtc,
-                process.WorkingSetBytes)).ToArray(),
-            metric.MonitoredProcesses.Select(process => new MetricMonitoredProcessPayload(
-                process.Name,
-                process.IsRunning,
-                process.MatchedProcessCount)).ToArray());
     }
 
     private static void MarkFailed(

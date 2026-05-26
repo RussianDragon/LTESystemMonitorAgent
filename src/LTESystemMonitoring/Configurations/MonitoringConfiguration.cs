@@ -1,6 +1,6 @@
 namespace LTESystemMonitoring.Configurations;
 
-public class SystemMonitoringConfiguration
+public class MonitoringConfiguration
 {
     public string[] MonitoredProcesses { get; set; } = [];
 

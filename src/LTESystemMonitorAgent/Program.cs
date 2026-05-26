@@ -1,6 +1,8 @@
 using LTESM.DAL.Abstractions;
 using LTESM.DAL.SQLite;
 using LTESM.DAL.SQLite.Configurations;
+using LTESystemMachineState;
+using LTESystemMetricDelivery.Http;
 using LTESystemMonitorAgent.Configurations;
 using LTESystemMonitorAgent.Jobs;
 using LTESystemMonitoring;
@@ -47,8 +49,10 @@ try
     builder.Services.AddSQLiteDbContext(databaseConfiguration);
     #endregion
 
-    builder.Services.AddSystemMonitoring(builder.Configuration.GetSection("Monitoring"));
-    builder.Services.AddSystemOutbox(builder.Configuration.GetSection("Outbox"));
+    builder.Services.AddSystemMachineState();
+    builder.Services.AddMonitoring(builder.Configuration.GetSection("Monitoring"));
+    builder.Services.AddHttpMetricDelivery(builder.Configuration.GetSection("HttpMetricDelivery"));
+    builder.Services.AddOutbox(builder.Configuration.GetSection("Outbox"));
 
     #region Настройка Quartz
     var quartzConfiguration = builder.Configuration

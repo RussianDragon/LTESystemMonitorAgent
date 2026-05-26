@@ -1,6 +1,6 @@
-namespace LTESystemOutbox;
+namespace LTESystemMetricDelivery.Abstractions.Models;
 
-internal sealed record MetricDiskSpacePayload(
+public sealed record MetricDiskSpacePayload(
     string Name,
     string? VolumeLabel,
     string? DriveFormat,

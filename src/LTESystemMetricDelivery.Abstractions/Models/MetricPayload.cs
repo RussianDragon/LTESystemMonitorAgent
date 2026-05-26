@@ -1,6 +1,6 @@
-namespace LTESystemOutbox;
+namespace LTESystemMetricDelivery.Abstractions.Models;
 
-internal sealed record MetricPayload(
+public sealed record MetricPayload(
     DateTimeOffset CollectedAtUtc,
     string Hostname,
     string WindowsVersion,

@@ -5,13 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LTESystemMonitoring;
 
-public static class SystemMonitoringExtensions
+public static class MonitoringExtensions
 {
-    public static IServiceCollection AddSystemMonitoring(
+    public static IServiceCollection AddMonitoring(
         this IServiceCollection services,
         IConfigurationSection configurationSection)
     {
-        var configuration = configurationSection.Get<SystemMonitoringConfiguration>()
+        var configuration = configurationSection.Get<MonitoringConfiguration>()
             ?? throw new InvalidOperationException("Configuration section 'Monitoring' is missing or invalid.");
 
         if (configuration.CpuSampleMilliseconds <= 0)
@@ -24,7 +24,7 @@ public static class SystemMonitoringExtensions
             throw new InvalidOperationException("Configuration setting 'Monitoring:MonitoredProcesses' must not contain empty process names.");
         }
 
-        services.Configure<SystemMonitoringConfiguration>(configurationSection);
+        services.Configure<MonitoringConfiguration>(configurationSection);
 
         services.AddScoped<IMetricCollectionService, MetricCollectionService>();
 

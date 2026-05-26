@@ -7,14 +7,21 @@
     <Project Path="src/LTESM.DAL.SQLite/LTESM.DAL.SQLite.csproj" Id="8841839b-34f0-44c0-bb29-88d89e98672a" />
   </Folder>
   <Folder Name="/src/Monitoring/">
+    <Project Path="src/LTESystemMachineState.Abstractions/LTESystemMachineState.Abstractions.csproj" />
+    <Project Path="src/LTESystemMachineState/LTESystemMachineState.csproj" />
     <Project Path="src/LTESystemMonitoring.Abstractions/LTESystemMonitoring.Abstractions.csproj" />
     <Project Path="src/LTESystemMonitoring/LTESystemMonitoring.csproj" Id="39d267fb-76ca-4325-8cbf-3822f23f3561" />
   </Folder>
   <Folder Name="/src/Outbox/">
+    <Project Path="src/LTESystemMetricDelivery.Abstractions/LTESystemMetricDelivery.Abstractions.csproj" />
+    <Project Path="src/LTESystemMetricDelivery.Http/LTESystemMetricDelivery.Http.csproj" />
     <Project Path="src/LTESystemOutbox.Abstractions/LTESystemOutbox.Abstractions.csproj" />
     <Project Path="src/LTESystemOutbox/LTESystemOutbox.csproj" />
   </Folder>
-  <Folder Name="/tests/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/LTESystemMonitoring.Tests/LTESystemMonitoring.Tests.csproj" Id="1bf8df89-8193-4ddb-8b42-f1dbdcc0c2cf" />
+    <Project Path="tests/LTESystemOutbox.Tests/LTESystemOutbox.Tests.csproj" Id="4ede310e-ba8a-45d9-83de-ec90d79999c7" />
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/LTESystemMockApi/LTESystemMockApi.csproj" Id="deebe635-b165-40f3-a82b-fdc94b995b83" />
   </Folder>

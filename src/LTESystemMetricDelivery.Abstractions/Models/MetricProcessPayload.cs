@@ -1,6 +1,6 @@
-namespace LTESystemOutbox;
+namespace LTESystemMetricDelivery.Abstractions.Models;
 
-internal sealed record MetricProcessPayload(
+public sealed record MetricProcessPayload(
     int ProcessId,
     string Name,
     DateTimeOffset? StartedAtUtc,

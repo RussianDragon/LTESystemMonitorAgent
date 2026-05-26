@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LTESM.DAL.SQLite\LTESM.DAL.SQLite.csproj" />
+    <ProjectReference Include="..\LTESystemMachineState\LTESystemMachineState.csproj" />
+    <ProjectReference Include="..\LTESystemMetricDelivery.Http\LTESystemMetricDelivery.Http.csproj" />
     <ProjectReference Include="..\LTESystemMonitoring\LTESystemMonitoring.csproj" />
     <ProjectReference Include="..\LTESystemMonitoring.Abstractions\LTESystemMonitoring.Abstractions.csproj" />
     <ProjectReference Include="..\LTESystemOutbox\LTESystemOutbox.csproj" />
