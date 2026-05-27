@@ -60,13 +60,13 @@ try
         .Get<QuartzConfiguration>()
         ?? throw new InvalidOperationException("Configuration section 'Quartz' is missing or invalid.");
 
-    var metricCollectionIntervalSeconds = GetPositiveIntervalSeconds(
-        quartzConfiguration.MetricCollectionIntervalSeconds,
-        "Quartz:MetricCollectionIntervalSeconds");
+    var metricCollectionCronExpression = GetRequiredCronExpression(
+        quartzConfiguration.MetricCollectionCronExpression,
+        "Quartz:MetricCollectionCronExpression");
 
-    var outboxDispatchIntervalSeconds = GetPositiveIntervalSeconds(
-        quartzConfiguration.OutboxDispatchIntervalSeconds,
-        "Quartz:OutboxDispatchIntervalSeconds");
+    var outboxDispatchCronExpression = GetRequiredCronExpression(
+        quartzConfiguration.OutboxDispatchCronExpression,
+        "Quartz:OutboxDispatchCronExpression");
 
     builder.Services.AddQuartz(quartz =>
     {
@@ -75,20 +75,16 @@ try
         quartz.AddTrigger(trigger => trigger
             .ForJob(collectMetricsJobKey)
             .WithIdentity("collect-metrics-trigger")
-            .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-            .WithSimpleSchedule(schedule => schedule
-                .WithIntervalInSeconds(metricCollectionIntervalSeconds)
-                .RepeatForever()));
+            .StartNow()
+            .WithCronSchedule(metricCollectionCronExpression));
 
         var dispatchOutboxJobKey = new JobKey("dispatch-outbox");
         quartz.AddJob<DispatchOutboxJob>(job => job.WithIdentity(dispatchOutboxJobKey));
         quartz.AddTrigger(trigger => trigger
             .ForJob(dispatchOutboxJobKey)
             .WithIdentity("dispatch-outbox-trigger")
-            .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-            .WithSimpleSchedule(schedule => schedule
-                .WithIntervalInSeconds(outboxDispatchIntervalSeconds)
-                .RepeatForever()));
+            .StartNow()
+            .WithCronSchedule(outboxDispatchCronExpression));
     });
 
     builder.Services.AddQuartzHostedService(options =>
@@ -155,14 +151,20 @@ finally
     LogManager.Shutdown();
 }
 
-static int GetPositiveIntervalSeconds(int intervalSeconds, string settingName)
+static string GetRequiredCronExpression(string? cronExpression, string settingName)
 {
-    if (intervalSeconds <= 0)
+    if (string.IsNullOrWhiteSpace(cronExpression))
     {
-        throw new InvalidOperationException($"Configuration setting '{settingName}' must be greater than zero.");
+        throw new InvalidOperationException($"Configuration setting '{settingName}' is required.");
     }
 
-    return intervalSeconds;
+    if (!CronExpression.IsValidExpression(cronExpression))
+    {
+        throw new InvalidOperationException(
+            $"Configuration setting '{settingName}' must be a valid Quartz cron expression.");
+    }
+
+    return cronExpression;
 }
 
 static void ValidateRequiredString(string? value, string settingName)

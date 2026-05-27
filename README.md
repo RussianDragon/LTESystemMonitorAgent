@@ -120,7 +120,8 @@ publish\LTESystemMonitorAgent\appsettings.json
 Основные параметры:
 
 - `HttpMetricDelivery:ApiUrl` - адрес HTTP API, куда отправляются метрики.
-- `Quartz:MetricCollectionIntervalSeconds` - интервал сбора метрик в секундах.
+- `Quartz:MetricCollectionCronExpression` - cron-выражение Quartz для расписания сбора метрик.
+- `Quartz:OutboxDispatchCronExpression` - cron-выражение Quartz для расписания отправки outbox.
 - `Monitoring:MonitoredProcesses` - список процессов, наличие которых нужно проверять.
 - `Logging:FilePath` - путь к основному файлу лога.
 - `HttpMetricDelivery:HttpTimeoutSeconds` - timeout HTTP-запроса в секундах.
@@ -220,8 +221,8 @@ src\LTESystemMonitorAgent\nlog.config
     "LoggingEnabled": false
   },
   "Quartz": {
-    "MetricCollectionIntervalSeconds": 30,
-    "OutboxDispatchIntervalSeconds": 10
+    "MetricCollectionCronExpression": "0/30 * * * * ?",
+    "OutboxDispatchCronExpression": "0/10 * * * * ?"
   },
   "Monitoring": {
     "CpuSampleMilliseconds": 500,
@@ -312,5 +313,5 @@ src\LTESystemMonitorAgent\nlog.config
 
 Quartz запускает две периодические задачи:
 
-- `CollectMetricsJob` - собирает системные метрики каждые `Quartz:MetricCollectionIntervalSeconds`.
-- `DispatchOutboxJob` - отправляет накопленные outbox-сообщения каждые `Quartz:OutboxDispatchIntervalSeconds`.
+- `CollectMetricsJob` - запускается по cron-выражению `Quartz:MetricCollectionCronExpression`.
+- `DispatchOutboxJob` - запускается по cron-выражению `Quartz:OutboxDispatchCronExpression`.

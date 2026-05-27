@@ -2,7 +2,7 @@ namespace LTESystemMonitorAgent.Configurations;
 
 public class QuartzConfiguration
 {
-    public int MetricCollectionIntervalSeconds { get; set; } = 30;
+    public string MetricCollectionCronExpression { get; set; } = "0/30 * * * * ?";
 
-    public int OutboxDispatchIntervalSeconds { get; set; } = 10;
+    public string OutboxDispatchCronExpression { get; set; } = "0/10 * * * * ?";
 }
